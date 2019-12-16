@@ -13,17 +13,12 @@
  * (c) 2001 by Svetlin Nakov - http://www.nakov.com
  */
 
- 
-import java.lang.AssertionError;
-import java.lang.IllegalArgumentException;
-import java.lang.Integer;
-import java.util.ArrayList;
+
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.io.IOException;
-import java.io.FileInputStream;
  
 public class ForwardClient
 {
@@ -138,8 +133,7 @@ public class ForwardClient
      * Program entry point. Reads arguments and run
      * the forward server
      */
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) throws IOException {
         try {
             arguments = new Arguments();
             arguments.setDefault("handshakeport", Integer.toString(DEFAULTSERVERPORT));
