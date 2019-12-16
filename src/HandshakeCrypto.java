@@ -25,17 +25,17 @@ public class HandshakeCrypto {
         return x.doFinal(cipher);
     }
 
-    public static PublicKey getPublicKeyFromCertFile(String certfile) throws Exception {
+    public static PublicKey getPublicKeyFromCertFile(String cert_filename) throws Exception {
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-        InputStream in_Cert = new FileInputStream(certfile);
+        InputStream in_Cert = new FileInputStream(cert_filename);
         X509Certificate cert = (X509Certificate) certFactory.generateCertificate(in_Cert);
         in_Cert.close();
         try { VerifyCertificate.validate(cert); } catch (Exception e) { System.out.println("CertError\n"+e); }
         return cert.getPublicKey();
     }
 
-    public static PrivateKey getPrivateKeyFromKeyFile(String privatekeyfile) throws Exception {
-        Path path = Paths.get(privatekeyfile);
+    public static PrivateKey getPrivateKeyFromKeyFile(String privatekey_filename) throws Exception {
+        Path path = Paths.get(privatekey_filename);
         byte[] privKeyByteArray = Files.readAllBytes(path);
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privKeyByteArray);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");

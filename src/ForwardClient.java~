@@ -137,7 +137,7 @@ public class ForwardClient {
      * Run handshake negotiation, then set up a listening socket and wait for user.
      * When user has connected, start port forwarder thread.
      */
-    static public void startForwardClient() throws Exception {
+    static public void startForwardClient() throws IOException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, SignatureException, InvalidAlgorithmParameterException, NoSuchPaddingException {
 
         doHandshake();
 
@@ -191,7 +191,7 @@ public class ForwardClient {
      * Program entry point. Reads arguments and run
      * the forward server
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws IOException, NoSuchProviderException, CertificateException, NoSuchAlgorithmException, InvalidKeyException, SignatureException, InvalidAlgorithmParameterException, NoSuchPaddingException {
         try {
             arguments = new Arguments();
             arguments.setDefault("handshakeport", Integer.toString(DEFAULTSERVERPORT));
