@@ -14,16 +14,11 @@
  * Peter Sjodin, KTH
  */
 
-import java.net.InetAddress;
-import java.net.Socket;
-import java.net.ServerSocket;
-import java.net.SocketException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
- 
-import javax.crypto.CipherOutputStream;
-import javax.crypto.CipherInputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class ForwardServerClientThread extends Thread
 {

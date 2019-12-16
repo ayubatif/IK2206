@@ -13,21 +13,21 @@ public class SessionDecrypter {
     public SessionDecrypter(String encodeKey, String encodeIV) throws Exception {
         sessionKey = new SessionKey(encodeKey);
         iv = Base64.getDecoder().decode(encodeIV);
+        IvParameterSpec ivParam = new IvParameterSpec(iv);
         cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, sessionKey.getSecretKey());
+        cipher.init(Cipher.DECRYPT_MODE, sessionKey.getSecretKey(), ivParam);
     }
 
     public SessionDecrypter(byte[] givenKey, byte[] givenIV) throws Exception {
-        sessionKey = new SessionKey(new String(givenKey));
+        sessionKey = new SessionKey(Base64.getEncoder().encodeToString(givenKey));
         iv = givenIV;
-        IvParameterSpec ivParam = new IvParameterSpec(iv);
+        IvParameterSpec ivParam = new IvParameterSpec(givenIV);
         cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.DECRYPT_MODE, sessionKey.getSecretKey(), ivParam);
     }
 
 
     public CipherInputStream openCipherInputStream(FileInputStream fileInputStream) {
-        CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, cipher);
-        return cipherInputStream;
+        return new CipherInputStream(fileInputStream, cipher);
     }
 }

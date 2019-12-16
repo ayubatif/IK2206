@@ -30,14 +30,13 @@ public class SessionEncrypter {
 
     public SessionEncrypter(byte[] key, byte[] iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidAlgorithmParameterException {
         IvParameterSpec ivParams = new IvParameterSpec(iv);
-        sessionKey = new SessionKey(new String(key));
+        sessionKey = new SessionKey(Base64.getEncoder().encodeToString(key));
         cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, sessionKey.getSecretKey(), ivParams);
     }
 
     public CipherOutputStream openCipherOutputStream(FileOutputStream fileOutputStream) {
-        CipherOutputStream cipherOutputStream = new CipherOutputStream(fileOutputStream, cipher);
-        return cipherOutputStream;
+        return new CipherOutputStream(fileOutputStream, cipher);
     }
 
     public String encodeKey() {

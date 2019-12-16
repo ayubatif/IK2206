@@ -13,18 +13,14 @@
  * (c) 2001 by Svetlin Nakov - http://www.nakov.com
  */
 
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.*;
-import java.security.cert.CertificateException;
+import java.security.PrivateKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
