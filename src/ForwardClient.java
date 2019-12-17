@@ -13,14 +13,13 @@
  * (c) 2001 by Svetlin Nakov - http://www.nakov.com
  */
 
-import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.PrivateKey;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
@@ -32,32 +31,19 @@ public class ForwardClient {
     public static final String PROGRAMNAME = "ForwardClient";
 
     private static Arguments arguments;
+    private static CertificateFactory certFactory;
+    private static X509Certificate cert_CA;
+    private static X509Certificate cert_USER;
+    private static X509Certificate cert_SERVER;
 
     private static int serverPort;
     private static String serverHost;
     private static SessionEncrypter mSessionEncrypter;
     private static SessionDecrypter mSessionDecrypter;
-    private static String sessionHost;
-    private static int sessionPort;
 
     private static void doHandshake() throws Exception {
 
-        /* Check user cert */
-        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-
-        InputStream in_USER = new FileInputStream(arguments.get("usercert"));
-        X509Certificate cert_USER = (X509Certificate) certFactory.generateCertificate(in_USER);
-        in_USER.close();
-
-        InputStream in_CA = new FileInputStream(arguments.get("cacert"));
-        X509Certificate cert_CA = (X509Certificate) certFactory.generateCertificate(in_CA);
-        in_CA.close();
-
-        VerifyCertificate.validate(cert_USER);
-        VerifyCertificate.validate(cert_CA);
-        VerifyCertificate.verify(cert_CA, cert_USER);
-
-        /* Connect to forward server server */
+        /* Connect to forward server */
         System.out.println("Connect to " +  arguments.get("handshakehost") + ":" + Integer.parseInt(arguments.get("handshakeport")));
         Socket socket = new Socket(arguments.get("handshakehost"), Integer.parseInt(arguments.get("handshakeport")));
 
@@ -79,7 +65,7 @@ public class ForwardClient {
         sHelloMsg.recv(socket);
 
         byte[] cert_SERVER_bytes = Base64.getDecoder().decode(sHelloMsg.getParameter("Certificate"));
-        X509Certificate cert_SERVER = (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(cert_SERVER_bytes));
+        cert_SERVER = (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(cert_SERVER_bytes));
 
         VerifyCertificate.validate(cert_SERVER);
         VerifyCertificate.verify(cert_CA, cert_SERVER);
@@ -94,8 +80,8 @@ public class ForwardClient {
         /* With a Session msg received, the key and IV are stored */
         HandshakeMessage sessionMsg = new HandshakeMessage();
         sessionMsg.recv(socket);
-        sessionHost = sessionMsg.getParameter("SessionHost");
-        sessionPort = Integer.parseInt(sessionMsg.getParameter("SessionPort"));
+        String sessionHost = sessionMsg.getParameter("SessionHost");
+        int sessionPort = Integer.parseInt(sessionMsg.getParameter("SessionPort"));
         byte[] sessionKey_encrypted = Base64.getDecoder().decode(sessionMsg.getParameter("SessionKey"));
         byte[] sessionIV_encrypted = Base64.getDecoder().decode(sessionMsg.getParameter("SessionIV"));
         PrivateKey privatekey_USER = HandshakeCrypto.getPrivateKeyFromKeyFile(arguments.get("key"));
@@ -115,8 +101,8 @@ public class ForwardClient {
          * to ForwardClient during the handshake (ServerHost, ServerPort parameters).
          * Here, we use a static address instead. 
          */
-        serverHost = arguments.get("handshakehost");
-        serverPort = Integer.parseInt(arguments.get("handshakeport"));
+        serverHost = sessionHost;
+        serverPort = sessionPort;
     }
 
     /*
@@ -155,7 +141,7 @@ public class ForwardClient {
         String clientHostPort = clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort();
         log("Accepted client from " + clientHostPort);
             
-        forwardThread = new ForwardServerClientThread(clientSocket, serverHost, serverPort);
+        forwardThread = new ForwardServerClientThread(clientSocket, serverHost, serverPort, mSessionEncrypter, mSessionDecrypter);
         forwardThread.start();
     }
 
@@ -182,6 +168,22 @@ public class ForwardClient {
         System.err.println(indent + "--cacert=<filename>");
         System.err.println(indent + "--key=<filename>");                
     }
+
+    private static void checkCertificates() throws IOException, CertificateException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, SignatureException {
+        certFactory = CertificateFactory.getInstance("X.509");
+
+        InputStream in_USER = new FileInputStream(arguments.get("usercert"));
+        cert_USER = (X509Certificate) certFactory.generateCertificate(in_USER);
+        in_USER.close();
+
+        InputStream in_CA = new FileInputStream(arguments.get("cacert"));
+        cert_CA = (X509Certificate) certFactory.generateCertificate(in_CA);
+        in_CA.close();
+
+        VerifyCertificate.validate(cert_USER);
+        VerifyCertificate.validate(cert_CA);
+        VerifyCertificate.verify(cert_CA, cert_USER);
+    }
     
     /**
      * Program entry point. Reads arguments and run
@@ -201,6 +203,7 @@ public class ForwardClient {
             usage();
             System.exit(1);
         }
+        checkCertificates();
         startForwardClient();
     }
 }

@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class ForwardServerClientThread extends Thread
 {
@@ -31,6 +32,9 @@ public class ForwardServerClientThread extends Thread
     private String mServerHostPort;
     private int mServerPort;
     private String mServerHost;
+    private final boolean ENCRYPTED_SESSION;
+    private SessionEncrypter mSessionEncrypter = null;
+    private SessionDecrypter mSessionDecrypter = null;
 
     /**
      * Creates a client thread for handling clients of NakovForwardServer.
@@ -42,8 +46,9 @@ public class ForwardServerClientThread extends Thread
         mClientSocket = aClientSocket;
         mServerPort = serverport;
         mServerHost = serverhost;
+        ENCRYPTED_SESSION = false;
     }
- 
+
     /**
      * Creates a client thread for handling clients of NakovForwardServer.
      * Wait for client to connect on client listening socket.
@@ -55,6 +60,40 @@ public class ForwardServerClientThread extends Thread
         //mServerHost =  listensocket.getInetAddress().getHostAddress();
         mServerPort = serverport;
         mServerHost = serverhost;
+        ENCRYPTED_SESSION = false;
+    }
+
+    /**
+     * Creates a client thread for handling clients of NakovForwardServer.
+     * A client socket should be connected and passed to this constructor.
+     * A server socket is created later by run() method.
+     * SUPPORTS ENCRYPTED SESSIONS
+     */
+    public ForwardServerClientThread(Socket aClientSocket, String serverhost, int serverport, SessionEncrypter aSessionEncrypter, SessionDecrypter aSessionDecrypter)
+    {
+        mClientSocket = aClientSocket;
+        mServerPort = serverport;
+        mServerHost = serverhost;
+        mSessionEncrypter = aSessionEncrypter;
+        mSessionDecrypter = aSessionDecrypter;
+        ENCRYPTED_SESSION = true;
+    }
+ 
+    /**
+     * Creates a client thread for handling clients of NakovForwardServer.
+     * Wait for client to connect on client listening socket.
+     * A server socket is created later by run() method.
+     * SUPPORTS ENCRYPTED SESSIONS
+     */
+    public ForwardServerClientThread(ServerSocket listensocket, String serverhost, int serverport, SessionEncrypter aSessionEncrypter, SessionDecrypter aSessionDecrypter) throws IOException
+    {
+        mListenSocket = listensocket;
+        //mServerHost =  listensocket.getInetAddress().getHostAddress();
+        mServerPort = serverport;
+        mServerHost = serverhost;
+        mSessionEncrypter = aSessionEncrypter;
+        mSessionDecrypter = aSessionDecrypter;
+        ENCRYPTED_SESSION = true;
     }
 
     public ServerSocket getListenSocket() {
@@ -94,17 +133,28 @@ public class ForwardServerClientThread extends Thread
                System.out.println(e); 
            }
 
-           // Obtain input and output streams of server and client
-           InputStream clientIn = mClientSocket.getInputStream();
-           OutputStream clientOut = mClientSocket.getOutputStream();
-           InputStream serverIn = mServerSocket.getInputStream();
-           OutputStream serverOut = mServerSocket.getOutputStream();
+            InputStream clientIn;
+            OutputStream clientOut;
+            InputStream serverIn;
+            OutputStream serverOut;
+            // If session is encrypted, encrypt and decrypt the streams
+            if (ENCRYPTED_SESSION) {
+                clientIn = mSessionDecrypter.openCipherInputStream(mClientSocket.getInputStream());
+                clientOut = mSessionEncrypter.openCipherOutputStream(mClientSocket.getOutputStream());
+                serverIn = mSessionDecrypter.openCipherInputStream(mServerSocket.getInputStream());
+                serverOut = mSessionEncrypter.openCipherOutputStream(mServerSocket.getOutputStream());
+            } else {
+                clientIn = mClientSocket.getInputStream();
+                clientOut = mClientSocket.getOutputStream();
+                serverIn = mServerSocket.getInputStream();
+                serverOut = mServerSocket.getOutputStream();
+            }
 
            mServerHostPort = mServerHost + ":" + mServerPort;
            Logger.log("TCP Forwarding  " + mClientHostPort + " <--> " + mServerHostPort + "  started.");
- 
+
            // Start forwarding of socket data between server and client
-           ForwardThread clientForward = new ForwardThread(this, clientIn, serverOut);
+           ForwardThread clientForward= new ForwardThread(this, clientIn, serverOut);
            ForwardThread serverForward = new ForwardThread(this, serverIn, clientOut);
            mBothConnectionsAreAlive = true;
            clientForward.start();
@@ -121,14 +171,13 @@ public class ForwardServerClientThread extends Thread
      * is broken (a read/write failure occured). This method disconnects both server
      * and client sockets causing both threads to stop forwarding.
      */
-    public synchronized void connectionBroken()
-    {
+    public synchronized void connectionBroken() {
         if (mBothConnectionsAreAlive) {
            // One of the connections is broken. Close the other connection and stop forwarding
            // Closing these socket connections will close their input/output streams
            // and that way will stop the threads that read from these streams
-           try { mServerSocket.close(); } catch (IOException e) {}
-           try { mClientSocket.close(); } catch (IOException e) {}
+           try { mServerSocket.close(); } catch (IOException e) { System.err.println(e.getMessage()); }
+           try { mClientSocket.close(); } catch (IOException e) { System.err.println(e.getMessage()); }
  
            mBothConnectionsAreAlive = false;
  

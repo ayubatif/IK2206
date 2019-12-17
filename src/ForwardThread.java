@@ -11,8 +11,8 @@ import java.io.OutputStream;
  
 public class ForwardThread extends Thread
 {
-private static final int READ_BUFFER_SIZE = 8192;
- 
+    private static final int READ_BUFFER_SIZE = 8192;
+
     InputStream mInputStream = null;
     OutputStream mOutputStream = null;
  
@@ -28,7 +28,7 @@ private static final int READ_BUFFER_SIZE = 8192;
         mOutputStream = aOutputStream;
         mParent = aParent;
     }
- 
+
     /**
      * Runs the thread. Until it is possible, reads the input stream and puts read
      * data in the output stream. If reading can not be done (due to exception or

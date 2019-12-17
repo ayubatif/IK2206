@@ -12,22 +12,18 @@
  * Version 1.0 - March, 2002
  * (c) 2001 by Svetlin Nakov - http://www.nakov.com
  */
- 
-import java.io.*;
-import java.lang.AssertionError;
-import java.lang.Integer;
+
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.security.SecureRandom;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Base64;
-import java.util.Properties;
-import java.util.StringTokenizer;
  
 public class ForwardServer {
     private static final boolean ENABLE_LOGGING = true;
@@ -41,6 +37,8 @@ public class ForwardServer {
     private ServerSocket listenSocket;
     private String targetHost;
     private int targetPort;
+    private static SessionEncrypter mSessionEncrypter;
+    private static SessionDecrypter mSessionDecrypter;
     
     /**
      * Do handshake negotiation with client to authenticate, learn 
@@ -99,6 +97,8 @@ public class ForwardServer {
         byte[] sessionIV = new byte[keylength/8];
         SecureRandom random = new SecureRandom();
         random.nextBytes(sessionIV);
+        mSessionEncrypter = new SessionEncrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
+        mSessionDecrypter = new SessionDecrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
 
         /* Encrypt the binary data */
         byte[] sessionKey_bytes_encrypted = HandshakeCrypto.encrypt(sessionKey.getSecretKey().getEncoded(), cert_USER.getPublicKey());
@@ -131,14 +131,14 @@ public class ForwardServer {
          * Here, we use a static address instead (serverHost/serverPort). 
          * (This may give "Address already in use" errors, but that's OK for now.)
          */
-        listenSocket = new ServerSocket();
-        listenSocket.bind(new InetSocketAddress(DEFAULTSERVERHOST, DEFAULTSERVERPORT));
+        this.listenSocket = new ServerSocket();
+        this.listenSocket.bind(new InetSocketAddress(DEFAULTSERVERHOST, DEFAULTSERVERPORT));
 
         /* The final destination. The ForwardServer sets up port forwarding
          * between the listensocket (ie., ServerHost/ServerPort) and the target.
          */
-        targetHost = frwrdMsg.getParameter("TargetHost");
-        targetPort = Integer.parseInt(frwrdMsg.getParameter("TargetPort"));
+        this.targetHost = frwrdMsg.getParameter("TargetHost");
+        this.targetPort = Integer.parseInt(frwrdMsg.getParameter("TargetPort"));
     }
 
     /**
@@ -165,7 +165,7 @@ public class ForwardServer {
 
             doHandshake();
 
-            forwardThread = new ForwardServerClientThread(this.listenSocket, this.targetHost, this.targetPort);
+            forwardThread = new ForwardServerClientThread(this.listenSocket, this.targetHost, this.targetPort, mSessionEncrypter, mSessionDecrypter);
             forwardThread.start();
         }
     }
