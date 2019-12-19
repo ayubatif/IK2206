@@ -20,13 +20,11 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Base64;
- 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class ForwardServer {
     private static final boolean ENABLE_LOGGING = true;
     public static final int DEFAULTSERVERPORT = 2206;
@@ -39,14 +37,13 @@ public class ForwardServer {
     private ServerSocket listenSocket;
     private String targetHost;
     private int targetPort;
-    private static SessionEncrypter mSessionEncrypter;
-    private static SessionDecrypter mSessionDecrypter;
     
     /**
      * Do handshake negotiation with client to authenticate, learn 
      * target host/port, etc.
+     * @return
      */
-    private void doHandshake() throws Exception {
+    private SessionEncrypter doHandshake() throws Exception {
 
         /* Check user cert */
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
@@ -97,8 +94,6 @@ public class ForwardServer {
         int keylength = 128;
         SessionKey sessionKey = new SessionKey(keylength);
         byte[] sessionIV = SessionKey.genIV(keylength);
-        mSessionEncrypter = new SessionEncrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
-        mSessionDecrypter = new SessionDecrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
 
 		/*
         Logger.log("sessionKey length: "+sessionKey.getSecretKey().getEncoded().length+" is: "+Arrays.toString(sessionKey.getSecretKey().getEncoded()));
@@ -137,13 +132,23 @@ public class ForwardServer {
          * (This may give "Address already in use" errors, but that's OK for now.)
          */
         this.listenSocket = new ServerSocket();
-        this.listenSocket.bind(new InetSocketAddress(Handshake.serverHost, Handshake.serverPort));
+        boolean success = false;
+        while (!success) {
+            try {
+                this.listenSocket.bind(new InetSocketAddress(Handshake.serverHost, ThreadLocalRandom.current().nextInt(49143,65535)));
+            } catch (Exception e) {
+                success = false;
+            }
+            success = true;
+        }
 
         /* The final destination. The ForwardServer sets up port forwarding
          * between the listensocket (ie., ServerHost/ServerPort) and the target.
          */
         this.targetHost = frwrdMsg.getParameter("TargetHost");
         this.targetPort = Integer.parseInt(frwrdMsg.getParameter("TargetPort"));
+
+        return new SessionEncrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
     }
 
     /**
@@ -168,9 +173,9 @@ public class ForwardServer {
         while(true) {
             ForwardServerClientThread forwardThread;
 
-            doHandshake();
+            SessionEncrypter sessionEncrypter = doHandshake();
 
-            forwardThread = new ForwardServerClientThread(this.listenSocket, this.targetHost, this.targetPort, mSessionEncrypter, mSessionDecrypter);
+            forwardThread = new ForwardServerClientThread(this.listenSocket, this.targetHost, this.targetPort, sessionEncrypter, new SessionDecrypter(sessionEncrypter.getKeyBytes(), sessionEncrypter.getIVBytes()));
             forwardThread.start();
         }
     }

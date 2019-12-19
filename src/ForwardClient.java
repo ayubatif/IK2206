@@ -39,10 +39,8 @@ public class ForwardClient {
 
     private static int serverPort;
     private static String serverHost;
-    private static SessionEncrypter mSessionEncrypter;
-    private static SessionDecrypter mSessionDecrypter;
 
-    private static void doHandshake() throws Exception {
+    private static SessionEncrypter doHandshake() throws Exception {
 
         /* Connect to forward server */
         System.out.println("Connect to " +  arguments.get("handshakehost") + ":" + Integer.parseInt(arguments.get("handshakeport")));
@@ -98,9 +96,6 @@ public class ForwardClient {
         Logger.log("sessionIV length: "+sessionIV.length+" is: "+ Arrays.toString(sessionIV));
 		*/
 
-        mSessionEncrypter = new SessionEncrypter(decoded_bytes, sessionIV);
-        mSessionDecrypter = new SessionDecrypter(mSessionEncrypter.getKeyBytes(), mSessionEncrypter.getIVBytes());
-
         /* Handshake complete */
         socket.close();
 
@@ -116,6 +111,8 @@ public class ForwardClient {
          */
         serverHost = sessionHost;
         serverPort = sessionPort;
+
+        return new SessionEncrypter(decoded_bytes, sessionIV);
     }
 
     /*
@@ -134,7 +131,7 @@ public class ForwardClient {
      */
     static public void startForwardClient() throws Exception {
 
-        doHandshake();
+        SessionEncrypter sessionEncrypter = doHandshake();
 
         // Wait for client. Accept one connection.
 
@@ -154,7 +151,7 @@ public class ForwardClient {
         String clientHostPort = clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort();
         log("Accepted client from " + clientHostPort);
             
-        forwardThread = new ForwardServerClientThread(clientSocket, serverHost, serverPort, mSessionEncrypter, mSessionDecrypter);
+        forwardThread = new ForwardServerClientThread(clientSocket, serverHost, serverPort, sessionEncrypter, new SessionDecrypter(sessionEncrypter.getKeyBytes(), sessionEncrypter.getIVBytes()));
         forwardThread.start();
     }
 
