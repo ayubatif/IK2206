@@ -31,3 +31,5 @@ test/
 
 # submission
 submission/
+
+*.pdf
