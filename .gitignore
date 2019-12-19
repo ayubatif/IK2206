@@ -26,5 +26,8 @@ hs_err_pid*
 out/
 *.iml
 
-# testing
+# test
 test/
+
+# submission
+submission/

@@ -14,13 +14,13 @@ import java.security.spec.PKCS8EncodedKeySpec;
 public class HandshakeCrypto {
 
     public static byte[] encrypt(byte[] plaininputbytes, PublicKey publickey) throws Exception {
-        Cipher x = Cipher.getInstance("RSA");
+        Cipher x = Cipher.getInstance("RSA/ECB/NoPadding");
         x.init(Cipher.ENCRYPT_MODE, publickey);
         return x.doFinal(plaininputbytes);
     }
 
     public static byte[] decrypt(byte[] cipher, PrivateKey privatekey) throws Exception {
-        Cipher x = Cipher.getInstance("RSA");
+        Cipher x = Cipher.getInstance("RSA/ECB/NoPadding");
         x.init(Cipher.DECRYPT_MODE, privatekey);
         return x.doFinal(cipher);
     }

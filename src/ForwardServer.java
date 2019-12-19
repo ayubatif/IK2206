@@ -20,9 +20,11 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Base64;
  
 public class ForwardServer {
@@ -94,25 +96,28 @@ public class ForwardServer {
         /* Initialize session data */
         int keylength = 128;
         SessionKey sessionKey = new SessionKey(keylength);
-        byte[] sessionIV = new byte[keylength/8];
-        SecureRandom random = new SecureRandom();
-        random.nextBytes(sessionIV);
+        byte[] sessionIV = SessionKey.genIV(keylength);
         mSessionEncrypter = new SessionEncrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
         mSessionDecrypter = new SessionDecrypter(sessionKey.getSecretKey().getEncoded(), sessionIV);
 
+		/*
+        Logger.log("sessionKey length: "+sessionKey.getSecretKey().getEncoded().length+" is: "+Arrays.toString(sessionKey.getSecretKey().getEncoded()));
+        Logger.log("sessionIV length: "+sessionIV.length+" is: "+Arrays.toString(sessionIV));
+		*/
+
         /* Encrypt the binary data */
-        byte[] sessionKey_bytes_encrypted = HandshakeCrypto.encrypt(sessionKey.getSecretKey().getEncoded(), cert_USER.getPublicKey());
-        byte[] sessionIV_bytes_encrypted = HandshakeCrypto.encrypt(sessionIV, cert_USER.getPublicKey());
+        byte[] decodedKey_bytes_encrypted = HandshakeCrypto.encrypt(sessionKey.getSecretKey().getEncoded(), cert_CLIENT.getPublicKey());
+        byte[] sessionIV_encrypted = HandshakeCrypto.encrypt(sessionIV, cert_CLIENT.getPublicKey());
 
         /* Encode the encrypted binary data */
-        byte[] sessionKey_bytes_encrypted64 = Base64.getEncoder().encode(sessionKey_bytes_encrypted);
-        byte[] sessionIV_bytes_encrypted64 = Base64.getEncoder().encode(sessionIV_bytes_encrypted);
+        byte[] decodedKey_bytes_encrypted64 = Base64.getEncoder().encode(decodedKey_bytes_encrypted);
+        byte[] sessionIV_encrypted64 = Base64.getEncoder().encode(sessionIV_encrypted);
 
         /* Send the Session msg */
         HandshakeMessage sessionMsg = new HandshakeMessage();
         sessionMsg.put("MessageType", "Session");
-        sessionMsg.put("SessionKey", new String(sessionKey_bytes_encrypted64));
-        sessionMsg.put("SessionIV", new String(sessionIV_bytes_encrypted64));
+        sessionMsg.put("SessionKey", new String(decodedKey_bytes_encrypted64));
+        sessionMsg.put("SessionIV", new String(sessionIV_encrypted64));
         sessionMsg.put("SessionHost", frwrdMsg.getParameter("TargetHost"));
         sessionMsg.put("SessionPort", frwrdMsg.getParameter("TargetPort"));
         sessionMsg.send(clientSocket);
@@ -132,7 +137,7 @@ public class ForwardServer {
          * (This may give "Address already in use" errors, but that's OK for now.)
          */
         this.listenSocket = new ServerSocket();
-        this.listenSocket.bind(new InetSocketAddress(DEFAULTSERVERHOST, DEFAULTSERVERPORT));
+        this.listenSocket.bind(new InetSocketAddress(Handshake.serverHost, Handshake.serverPort));
 
         /* The final destination. The ForwardServer sets up port forwarding
          * between the listensocket (ie., ServerHost/ServerPort) and the target.

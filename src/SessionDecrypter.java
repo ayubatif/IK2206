@@ -9,28 +9,26 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public class SessionDecrypter {
-    private Cipher cipher;
-    private SessionKey sessionKey;
-    private byte[] iv;
+    private SessionKey mSessionKey;
+    private byte[] mIV;
+    private Cipher mCipher;
 
     public SessionDecrypter(String encodeKey, String encodeIV) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException {
-        sessionKey = new SessionKey(encodeKey);
-        iv = Base64.getDecoder().decode(encodeIV);
-        IvParameterSpec ivParam = new IvParameterSpec(iv);
-        cipher = Cipher.getInstance("AES/CBC/PKCS8Padding");
-        cipher.init(Cipher.DECRYPT_MODE, sessionKey.getSecretKey(), ivParam);
+        mSessionKey = new SessionKey(encodeKey);
+        mIV = Base64.getDecoder().decode(encodeIV);
+        mCipher = Cipher.getInstance("AES/CTR/NoPadding");
+        mCipher.init(Cipher.DECRYPT_MODE, mSessionKey.getSecretKey(), new IvParameterSpec(mIV));
     }
 
-    public SessionDecrypter(byte[] givenKey, byte[] givenIV) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException {
-        sessionKey = new SessionKey(Base64.getEncoder().encodeToString(givenKey));
-        iv = givenIV;
-        IvParameterSpec ivParam = new IvParameterSpec(givenIV);
-        cipher = Cipher.getInstance("AES/CBC/PKCS8Padding");
-        cipher.init(Cipher.DECRYPT_MODE, sessionKey.getSecretKey(), ivParam);
+    public SessionDecrypter(byte[] key, byte[] iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException {
+        mSessionKey = new SessionKey(key);
+        mIV = iv;
+        mCipher = Cipher.getInstance("AES/CTR/NoPadding");
+        mCipher.init(Cipher.DECRYPT_MODE, mSessionKey.getSecretKey(), new IvParameterSpec(mIV));
     }
 
 
     public CipherInputStream openCipherInputStream(InputStream inputStream) {
-        return new CipherInputStream(inputStream, cipher);
+        return new CipherInputStream(inputStream, mCipher);
     }
 }

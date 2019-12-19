@@ -1,8 +1,8 @@
 import java.security.*;
 
 public class HandshakeTester {
-    static String PRIVATEKEYFILE = "konrad.key.der";
-    static String CERTFILE = "konrad.crt";
+    static String PRIVATEKEYFILE = "client-key.der";
+    static String CERTFILE = "client.pem";
     static String PLAINTEXT = "Time flies like an arrow. Fruit flies like a banana.";
     static String ENCODING = "UTF-8"; /* For converting between strings and byte arrays */
 

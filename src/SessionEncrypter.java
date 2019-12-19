@@ -10,45 +10,44 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 public class SessionEncrypter {
-    private SessionKey sessionKey;
-    private byte[] iv;
-    private Cipher cipher;
+    private SessionKey mSessionKey;
+    private byte[] mIV;
+    private Cipher mCipher;
 
     public SessionEncrypter(Integer keylength) throws Exception {
         SessionKey sessionKey = new SessionKey(keylength);
         byte[] ivBytes = new byte[keylength/8];
         SecureRandom random = new SecureRandom();
         random.nextBytes(ivBytes);
-        iv = ivBytes;
-        IvParameterSpec ivParams = new IvParameterSpec(iv);
-        cipher = Cipher.getInstance("AES/CBC/PKCS8Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, sessionKey.getSecretKey(), ivParams);
+        mIV = ivBytes;
+        mCipher = Cipher.getInstance("AES/CTR/NoPadding");
+        mCipher.init(Cipher.ENCRYPT_MODE, sessionKey.getSecretKey(), new IvParameterSpec(mIV));
     }
 
     public SessionEncrypter(byte[] key, byte[] iv) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidAlgorithmParameterException {
-        IvParameterSpec ivParams = new IvParameterSpec(iv);
-        sessionKey = new SessionKey(Base64.getEncoder().encodeToString(key));
-        cipher = Cipher.getInstance("AES/CBC/PKCS8Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, sessionKey.getSecretKey(), ivParams);
+        mSessionKey = new SessionKey(key);
+        mIV = iv;
+        mCipher = Cipher.getInstance("AES/CTR/NoPadding");
+        mCipher.init(Cipher.ENCRYPT_MODE, mSessionKey.getSecretKey(), new IvParameterSpec(mIV));
     }
 
     public CipherOutputStream openCipherOutputStream(OutputStream outputStream) {
-        return new CipherOutputStream(outputStream, cipher);
+        return new CipherOutputStream(outputStream, mCipher);
     }
 
     public String encodeKey() {
-        return Base64.getEncoder().encodeToString(sessionKey.getSecretKey().getEncoded());
+        return Base64.getEncoder().encodeToString(mSessionKey.getSecretKey().getEncoded());
     }
 
     public String encodeIV() {
-        return Base64.getEncoder().encodeToString(iv);
+        return Base64.getEncoder().encodeToString(mIV);
     }
 
     byte[] getKeyBytes() {
-        return Base64.getEncoder().encode(sessionKey.getSecretKey().getEncoded());
+        return mSessionKey.getSecretKey().getEncoded();
     }
 
     byte[] getIVBytes() {
-        return Base64.getEncoder().encode(iv);
+        return mIV;
     }
 }

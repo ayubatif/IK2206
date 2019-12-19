@@ -15,9 +15,21 @@ public class SessionKey {
         secretKey = keyGenerator.generateKey();
     }
     SessionKey(String encodedKey) {
-        byte[] dcdKey = Base64.getDecoder().decode(encodedKey.getBytes());
-        secretKey = new SecretKeySpec(dcdKey, 0, dcdKey.length, "AES");
+        byte[] dcdKey = Base64.getDecoder().decode(encodedKey);
+        secretKey = new SecretKeySpec(dcdKey, 0, dcdKey.length, "AES"); // rebuild key using SecretKeySpec
     }
+
+    public SessionKey(byte[] sessionKey_bytes) {
+        secretKey = new SecretKeySpec(sessionKey_bytes, 0, sessionKey_bytes.length, "AES"); // rebuild key using SecretKeySpec
+    }
+
+    public static byte[] genIV(int keylength) {
+        byte[] iv = new byte[keylength/8];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(iv);
+        return iv;
+    }
+
     SecretKey getSecretKey() {
         return secretKey;
     }

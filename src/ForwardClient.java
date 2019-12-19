@@ -22,6 +22,7 @@ import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Base64;
 
 public class ForwardClient {
@@ -60,7 +61,7 @@ public class ForwardClient {
         cHelloMsg.putParameter("Certificate", cert_USER_string64); // Provide the cert
         cHelloMsg.send(socket);
 
-        /* Now that server certs are OK, we check the incoming Handshake ClientHello msg by verifying its cert */
+        /* We check the incoming Handshake ServerHello msg by verifying its cert */
         HandshakeMessage sHelloMsg = new HandshakeMessage();
         sHelloMsg.recv(socket);
 
@@ -84,8 +85,20 @@ public class ForwardClient {
         int sessionPort = Integer.parseInt(sessionMsg.getParameter("SessionPort"));
         byte[] sessionKey_encrypted = Base64.getDecoder().decode(sessionMsg.getParameter("SessionKey"));
         byte[] sessionIV_encrypted = Base64.getDecoder().decode(sessionMsg.getParameter("SessionIV"));
+
         PrivateKey privatekey_USER = HandshakeCrypto.getPrivateKeyFromKeyFile(arguments.get("key"));
-        mSessionEncrypter = new SessionEncrypter(HandshakeCrypto.decrypt(sessionKey_encrypted, privatekey_USER), HandshakeCrypto.decrypt(sessionIV_encrypted, privatekey_USER));
+        byte[] decodedKey_bytes_X = HandshakeCrypto.decrypt(sessionKey_encrypted, privatekey_USER);
+        byte[] sessionIV_X = HandshakeCrypto.decrypt(sessionIV_encrypted, privatekey_USER);
+
+        byte[] decoded_bytes = Arrays.copyOfRange(decodedKey_bytes_X,decodedKey_bytes_X.length-16,decodedKey_bytes_X.length);
+        byte[] sessionIV = Arrays.copyOfRange(sessionIV_X,sessionIV_X.length-16,sessionIV_X.length);
+
+		/*
+        Logger.log("sessionKey length: "+decoded_bytes.length+" is: "+Arrays.toString(decoded_bytes));
+        Logger.log("sessionIV length: "+sessionIV.length+" is: "+ Arrays.toString(sessionIV));
+		*/
+
+        mSessionEncrypter = new SessionEncrypter(decoded_bytes, sessionIV);
         mSessionDecrypter = new SessionDecrypter(mSessionEncrypter.getKeyBytes(), mSessionEncrypter.getIVBytes());
 
         /* Handshake complete */
